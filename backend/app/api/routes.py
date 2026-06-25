@@ -3,8 +3,15 @@ from pydantic import BaseModel
 from typing import Optional
 import random
 import re
+import sqlite3
+from pathlib import Path
 
 router = APIRouter()
+
+BASE_DIR = Path(__file__).resolve().parents[2]
+DATA_DIR = BASE_DIR / 'data'
+DB_PATH = DATA_DIR / 'mathpro_enterprise.db'
+
 
 FIELDS = {
     "Primary Mathematics": [
@@ -222,6 +229,84 @@ SYSTEM_TASKS = [
     {"id": "assignment_preview", "title": "Review assignment preview workflow", "status": "open", "details": "Assignment preview buttons now open preview screens with sample questions.", "recommendation": "Next connect preview to publish, grading, timer, and student assignment-taking mode."},
 ]
 
+
+def db_connection():
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def insert_assignment(cursor, assignment: dict):
+    cursor.execute(
+        """
+        INSERT OR REPLACE INTO assignments (
+            id, title, class_id, class_name, status, submitted, total,
+            field, topic, level, difficulty, question_count,
+            due_date, estimated_minutes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            assignment["id"], assignment["title"], assignment["class_id"],
+            assignment["class_name"], assignment["status"], assignment["submitted"],
+            assignment["total"], assignment["field"], assignment["topic"],
+            assignment["level"], assignment["difficulty"], assignment["question_count"],
+            assignment.get("due_date", "No due date set"), assignment.get("estimated_minutes", max(10, assignment["question_count"] * 2)),
+        ),
+    )
+
+
+def init_db():
+    conn = db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS assignments (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            class_id TEXT NOT NULL,
+            class_name TEXT NOT NULL,
+            status TEXT NOT NULL,
+            submitted INTEGER NOT NULL,
+            total INTEGER NOT NULL,
+            field TEXT NOT NULL,
+            topic TEXT NOT NULL,
+            level TEXT NOT NULL,
+            difficulty TEXT NOT NULL,
+            question_count INTEGER NOT NULL,
+            due_date TEXT NOT NULL,
+            estimated_minutes INTEGER NOT NULL
+        )
+        """
+    )
+    cur.execute("SELECT COUNT(*) AS count FROM assignments")
+    if cur.fetchone()["count"] == 0:
+        for assignment in ASSIGNMENT_BANK:
+            insert_assignment(cur, assignment)
+    conn.commit()
+    conn.close()
+
+
+def get_all_assignments():
+    init_db()
+    conn = db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM assignments ORDER BY rowid")
+    rows = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return rows
+
+
+def get_assignment(assignment_id: str):
+    init_db()
+    conn = db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM assignments WHERE id = ?", (assignment_id,))
+    row = cur.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
 class LoginRequest(BaseModel):
     name: str
     role: str
@@ -250,7 +335,7 @@ class AssignmentRequest(BaseModel):
 
 @router.get("/health")
 def health():
-    return {"status": "ok", "version": "enterprise-v3.3"}
+    return {"status": "ok", "version": "enterprise-v4.0", "database": str(DB_PATH)}
 
 @router.post("/auth/login")
 def login(req: LoginRequest):
@@ -380,15 +465,15 @@ def tutor(req: TutorRequest):
 
 @router.get("/teacher/dashboard")
 def teacher_dashboard():
-    return {"classes": CLASSES, "recent_activity": ["JSS 2 completed 420 arithmetic questions this week.", "SS 2 needs review work on trigonometric identities.", "University Year 1 improved determinant accuracy by 9 percentage points.", "Graduate Mathematics added Dynamic Programming and Stochastic Calculus.", "Olympiad Training Group completed modular arithmetic drills."], "assignments": ASSIGNMENT_BANK}
+    return {"classes": CLASSES, "recent_activity": ["JSS 2 completed 420 arithmetic questions this week.", "SS 2 needs review work on trigonometric identities.", "University Year 1 improved determinant accuracy by 9 percentage points.", "Graduate Mathematics added Dynamic Programming and Stochastic Calculus.", "Olympiad Training Group completed modular arithmetic drills."], "assignments": get_all_assignments()}
 
 @router.get("/teacher/assignments")
 def teacher_assignments():
-    return {"assignments": ASSIGNMENT_BANK}
+    return {"assignments": get_all_assignments()}
 
 @router.get("/teacher/assignments/{assignment_id}")
 def assignment_preview(assignment_id: str):
-    assignment = next((a for a in ASSIGNMENT_BANK if a["id"] == assignment_id), None)
+    assignment = get_assignment(assignment_id)
     if assignment is None:
         raise HTTPException(status_code=404, detail="Assignment not found")
     samples = []
@@ -410,7 +495,7 @@ def create_assignment(req: AssignmentRequest):
     class_name = class_item["name"] if class_item else req.class_id
     new_assignment = {"id": f"assignment_{len(ASSIGNMENT_BANK)+1}", "title": req.title, "class_id": req.class_id, "class_name": class_name, "status": "saved", "submitted": 0, "total": class_item["students"] if class_item else 0, "field": req.field, "topic": req.topic, "level": req.level, "difficulty": req.difficulty, "question_count": req.question_count, "due_date": req.due_date or "No due date set", "estimated_minutes": max(10, req.question_count * 2)}
     ASSIGNMENT_BANK.append(new_assignment)
-    return {"status": "saved", "assignment": new_assignment, "assignments": ASSIGNMENT_BANK}
+    return {"status": "saved", "assignment": new_assignment, "assignments": get_all_assignments()}
 
 @router.get("/admin/dashboard")
 def admin_dashboard():

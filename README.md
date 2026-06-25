@@ -1,27 +1,19 @@
-# MathPro Enterprise v3.3
+# MathPro Enterprise v4.0
 
-This version fixes the latest reported issues.
+This is the next full-scale foundation build.
 
-## Fixed in v3.3
-- Restored/expanded course catalog.
-- Added Graduate Mathematics topics:
-  - Dynamic Programming
-  - Stochastic Calculus
-- Added wider fields:
-  - Primary Mathematics
-  - Differential Equations
-  - Integral Equations
-  - Probability and Statistics
-  - Operations Research
-  - Graduate Mathematics
-- Reintroduced safe LaTeX rendering using `MathDisplay`.
-- Fixed PDE display such as `u_{tt}=25u_{xx}`.
-- Assignment Preview buttons now open a preview screen.
-- Assignment preview displays sample questions and answers.
-- Teacher assignment bank remains refreshed after returning from assignment creation.
+## New in v4.0
+- SQLite-backed persistent assignment bank.
+- Created assignments survive backend restarts.
+- Assignment preview still works with generated sample questions.
+- Assignment delete backend endpoint added.
+- Backend database auto-initializes on startup.
+- Expanded catalog from v3.3 preserved.
+- Dynamic Programming and Stochastic Calculus remain under Graduate Mathematics.
+- Olympiad Mathematics retained.
 
 ## Important
-Assignments still persist only while the FastAPI backend is running. Permanent persistence requires the next database build.
+SQLite is good for local development. For cloud production, the next step should be PostgreSQL.
 
 ## Run backend
 
@@ -40,4 +32,13 @@ cd frontend_flutter
 flutter clean
 flutter pub get
 flutter run -d chrome
+```
+
+## Commit to GitHub
+
+```powershell
+git checkout -b fullscale-v4
+git add .
+git commit -m "Add MathPro Enterprise v4 persistent assignment bank"
+git push -u origin fullscale-v4
 ```

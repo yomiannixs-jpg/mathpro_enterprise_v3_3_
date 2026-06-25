@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import router
+from app.api.routes import router, init_db
 
-app = FastAPI(title="MathPro Enterprise v3.3", version="3.3.0")
+app = FastAPI(title="MathPro Enterprise v4.0", version="4.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -15,11 +15,16 @@ app.add_middleware(
 app.include_router(router, prefix="/api")
 
 
+@app.on_event("startup")
+def startup():
+    init_db()
+
+
 @app.get("/")
 def root():
     return {
         "status": "ok",
         "app": "MathPro Enterprise",
-        "version": "3.3",
-        "message": "LaTeX rendering, assignment previews, and expanded graduate catalog running",
+        "version": "4.0",
+        "message": "Persistent assignment bank and full-scale foundation running",
     }
