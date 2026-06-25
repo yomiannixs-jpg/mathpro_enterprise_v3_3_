@@ -1,0 +1,23 @@
+name: mathpro_enterprise_v3
+description: MathPro Enterprise v3 unified app
+publish_to: 'none'
+version: 3.0.0+30
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.6.0
+  provider: ^6.1.5
+  shared_preferences: ^2.5.5
+  flutter_math_fork: ^0.7.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
